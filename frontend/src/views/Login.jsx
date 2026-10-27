@@ -12,6 +12,7 @@ import { askAddDeviceData } from '../sheets.jsx'
 import { passwordOn, PasswordRegisterForm, openPasswordSignIn } from '../components/PasswordAuth.jsx'
 import { openDeviceLinkRedeem } from '../components/Passkeys.jsx'
 import { openLostAccess } from '../components/LostAccess.jsx'
+import StuFitLogo from '../components/StuFitLogo.jsx'
 
 function RegisterSheet({ close }) {
   const { setUser, pushState, pullState, loadConfig } = useStore()
@@ -76,10 +77,9 @@ export default function Login() {
     try { const u = await passkeyLogin(); setUser(u, { adopt: true }); await adoptProfile(askAddDeviceData); useUI.getState().toast(t('Welcome back, {0}', u.name)) }
     catch (e) { if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') useUI.getState().toast(passkeyError(e, t('Sign-in failed'))) }
   }
-  const head = <>
-    <div style={{ fontSize: 54, display: 'flex', justifyContent: 'center', color: 'var(--acc)' }}><Icon name="dumbbell" /></div>
-    <h1 style={{ fontSize: 34, fontWeight: 700, letterSpacing: '-.028em', margin: '10px 0 4px' }}>openGym</h1>
-  </>
+  const head = <div style={{ display: 'flex', justifyContent: 'center', margin: '28px 0 14px' }}>
+    <StuFitLogo variant="stacked" height={170} />
+  </div>
   const wrap = { display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '78vh', textAlign: 'center' }
 
   // Demo build: no backend to sign in against — the only way in is the local guest profile.
