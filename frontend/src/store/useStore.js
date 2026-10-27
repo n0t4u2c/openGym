@@ -356,6 +356,12 @@ export function freshState() {
   // StuFit: orange instead of the brand green (the one place a new profile gets its accent).
   s.accent = 'custom'
   s.accentCustom = '#ea580c'
+  // StuFit: a new profile starts in pounds (inches and mph follow it) with weeks from Sunday,
+  // without the gym check-in and the body-weight card on Home. All a switch away in Settings.
+  s.unit = 'lb'
+  s.weekStart = 0
+  s.checkIn = false
+  s.showWeightCard = false
   return s
 }
 
