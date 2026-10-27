@@ -314,6 +314,12 @@ export function freshState() {
   // Exercise animations: Small (v1.3.11), a thumbnail beside the exercise name that a tap opens,
   // so the first set is on screen without scrolling. DEF stays 'full' for a profile saved before.
   s.gifSize = 'mini'
+  // StuFit: a new profile starts in pounds (inches and mph follow it) with weeks from Sunday,
+  // without the gym check-in and the body-weight card on Home. All a switch away in Settings.
+  s.unit = 'lb'
+  s.weekStart = 0
+  s.checkIn = false
+  s.showWeightCard = false
   return s
 }
 
