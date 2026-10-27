@@ -353,7 +353,9 @@ export function freshState() {
   // set here, not a rule: a profile without S.streakRule counts as it always did (lib/streak-rule.js).
   s.streakRuleAsk = true
   // The brand's green (1.4.5). DEF stays on the old green, so only a copy made here gets this.
-  s.accent = NEW_ACCENT
+  // StuFit: orange instead of the brand green (the one place a new profile gets its accent).
+  s.accent = 'custom'
+  s.accentCustom = '#ea580c'
   return s
 }
 
