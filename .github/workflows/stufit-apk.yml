@@ -140,7 +140,9 @@ jobs:
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           UNSIGNED=frontend/android/app/build/outputs/apk/sideload/release/app-sideload-release-unsigned.apk
           OUT="$GITHUB_WORKSPACE/out"
-          APK="openGym-$VERSION.apk"
+          # A fixed name, so github.com/<repo>/releases/latest/download/StuFit.apk is a permanent
+          # direct link. The updater takes any name without a separate hd or plus word as Standard.
+          APK="StuFit.apk"
           mkdir -p "$OUT"
           "$BT/zipalign" -f -p 4 "$UNSIGNED" "$RUNNER_TEMP/aligned.apk"
           "$BT/apksigner" sign --ks "$KS" --ks-key-alias "$ANDROID_KEY_ALIAS" \
@@ -172,11 +174,13 @@ jobs:
           set -eu
           NOTES="StuFit $VERSION for Android, built from openGym $VERSION with the StuFit branding.
 
-          Install the APK, or let the app update itself. If you got the file from anywhere else, check it against the .sha256 file.
+          Download StuFit.apk below and open it, or let the app update itself. If you got the file from anywhere else, check it against StuFit.apk.sha256.
 
           Package id: $STUFIT_APPLICATION_ID
           Signing certificate SHA-256: $EXPECTED_CERT_SHA256"
-          gh release create "$GITHUB_REF_NAME" "out/openGym-$VERSION.apk" "out/openGym-$VERSION.apk.sha256" \
+          # Running the same tag again (a respin of this version) replaces its release.
+          gh release delete "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --yes 2>/dev/null || true
+          gh release create "$GITHUB_REF_NAME" out/StuFit.apk out/StuFit.apk.sha256 \
             --repo "$GITHUB_REPOSITORY" --verify-tag --title "StuFit $VERSION" --notes "$NOTES"
 
       - name: Keep the APK of a test run
