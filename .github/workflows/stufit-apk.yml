@@ -147,9 +147,9 @@ jobs:
             --ks-pass env:ANDROID_KEYSTORE_PASSWORD --key-pass env:ANDROID_KEY_PASSWORD \
             --out "$OUT/$APK" "$RUNNER_TEMP/aligned.apk"
           rm -f "$KS" "$RUNNER_TEMP/aligned.apk" "$OUT/$APK.idsig"
-          CERT=$("$BT/apksigner" verify --print-certs "$OUT/$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
-          echo "Signing certificate SHA-256: $CERT"
-          if [ "$CERT" != "$EXPECTED_CERT_SHA256" ]; then
+          CERTS=$("$BT/apksigner" verify --print-certs "$OUT/$APK")
+          echo "$CERTS"
+          if ! echo "$CERTS" | grep -qi "SHA-256 digest: $EXPECTED_CERT_SHA256"; then
             echo "The APK is signed with a different key than the StuFit key. Not publishing." >&2
             rm -f "$OUT/$APK"
             exit 1
@@ -160,7 +160,7 @@ jobs:
             echo "- File: $APK ($(numfmt --to=iec "$(stat -c %s "$OUT/$APK")"))"
             echo "- Package id: $STUFIT_APPLICATION_ID"
             echo "- Version code: ${{ steps.ver.outputs.code }}"
-            echo "- Signing certificate SHA-256: $CERT"
+            echo "- Signing certificate SHA-256: $EXPECTED_CERT_SHA256 (checked)"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish the release
