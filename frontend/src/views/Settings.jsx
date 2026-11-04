@@ -1127,7 +1127,7 @@ export default function Settings({ page = null, find = null, via = null, entryKe
               onClick={() => (updateInfo?.hasUpdate ? onUpdateRowClick() : checkNow())} />
           : <Row icon="download" iconTint="var(--green)" title={t('Get the Android app')}
               accessory="chevron"
-              onClick={() => window.open(RELEASES_PAGE, '_blank', 'noopener')} />}
+              onClick={() => window.open(RELEASES_PAGE + '/download/StuFit.apk', '_blank', 'noopener')} />}
       </Section>
       {/* The F-Droid build has no Wear OS link (it would need Google Play services, which F-Droid
           leaves out): said here rather than having a watch that silently never connects. */}
