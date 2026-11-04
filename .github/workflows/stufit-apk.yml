@@ -1,0 +1,189 @@
+name: StuFit APK
+
+# Builds the Android app (the Standard APK, 180 px animations built in), signs it with the StuFit
+# key and, for a version tag, publishes it as a GitHub release. That release is what the app's own
+# updater reads (frontend/src/lib/update.js), so a phone with the app offers the update itself.
+#
+# To release, once the stufit branch sits on a new upstream version and is pushed:
+#   git tag 1.4.5
+#   git push origin 1.4.5
+# The tag is a plain version with no "v", and it must equal "version" in frontend/package.json.
+# Any other run (a change to this file, or a manual run) builds and signs the same APK but
+# publishes nothing. The APK is kept for 3 days as a download on the run's page.
+#
+# Needs four repository secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+# ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD.
+on:
+  push:
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
+    branches: [stufit]
+    paths: ['.github/workflows/stufit-apk.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stufit-apk
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: 22
+  # The Android package id. A phone knows the app by it for good, so changing it later makes
+  # a different app that cannot update the old one.
+  STUFIT_APPLICATION_ID: farm.stuart.stufit
+  # SHA-256 of the StuFit signing certificate (public). The job refuses to publish an APK that
+  # is signed with anything else, such as a wrong key pasted into the secret.
+  EXPECTED_CERT_SHA256: 08f189b7f927346620b33e344dca489a54f02c0e054ecbcbe2af507752a19c52
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      # First, so a missing secret fails in seconds and not after the build.
+      - name: Check the signing secrets
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -eu
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            eval "value=\${$name:-}"
+            if [ -z "$value" ]; then
+              echo "The repository secret $name is not set. Add it under Settings, Secrets and variables, Actions." >&2
+              exit 1
+            fi
+          done
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Version
+        id: ver
+        run: |
+          set -eu
+          PKG=$(node -p "require('./frontend/package.json').version")
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "$PKG" ]; then
+            echo "The tag $GITHUB_REF_NAME does not match frontend/package.json, which says $PKG." >&2
+            exit 1
+          fi
+          MA=${PKG%%.*}
+          REST=${PKG#*.}
+          MI=${REST%%.*}
+          PA=${REST#*.}
+          if [ "$MI" -gt 99 ] || [ "$PA" -gt 99 ]; then
+            echo "Version $PKG does not fit the version code scheme (minor and patch below 100)." >&2
+            exit 1
+          fi
+          # 1.4.4 becomes 10404. It rises with every version, whatever number upstream uses.
+          CODE=$((MA * 10000 + MI * 100 + PA))
+          echo "version=$PKG" >> "$GITHUB_OUTPUT"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+
+      # Build only, nothing is committed: the package id and the version code of this one APK.
+      - name: Set the package id and version code
+        env:
+          VERSION_CODE: ${{ steps.ver.outputs.code }}
+        run: |
+          set -eu
+          F=frontend/android/app/build.gradle
+          sed -i "s/^\([[:space:]]*applicationId \)\"ch[.]duartesantos[.]opengym\"/\1\"$STUFIT_APPLICATION_ID\"/" "$F"
+          sed -i "s/^\([[:space:]]*versionCode \)[0-9][0-9]*/\1$VERSION_CODE/" "$F"
+          grep -n -E '^[[:space:]]*(applicationId|versionCode|versionName) ' "$F"
+          grep -q "^[[:space:]]*applicationId \"$STUFIT_APPLICATION_ID\"" "$F"
+          grep -q "^[[:space:]]*versionCode $VERSION_CODE\$" "$F"
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      # The phone bundle, with the 180 px animations from catalogue/media, synced into android/.
+      - name: Phone bundle and cap sync
+        working-directory: frontend
+        env:
+          VITE_APK_VARIANT: standard
+        run: npm run build:mobile
+
+      - name: Build the release APK
+        working-directory: frontend/android
+        run: ./gradlew --no-daemon assembleSideloadRelease
+
+      - name: Align and sign
+        id: sign
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -eu
+          KS="$RUNNER_TEMP/stufit.jks"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$KS"
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          UNSIGNED=frontend/android/app/build/outputs/apk/sideload/release/app-sideload-release-unsigned.apk
+          OUT="$GITHUB_WORKSPACE/out"
+          APK="openGym-$VERSION.apk"
+          mkdir -p "$OUT"
+          "$BT/zipalign" -f -p 4 "$UNSIGNED" "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" sign --ks "$KS" --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass env:ANDROID_KEYSTORE_PASSWORD --key-pass env:ANDROID_KEY_PASSWORD \
+            --out "$OUT/$APK" "$RUNNER_TEMP/aligned.apk"
+          rm -f "$KS" "$RUNNER_TEMP/aligned.apk" "$OUT/$APK.idsig"
+          CERT=$("$BT/apksigner" verify --print-certs "$OUT/$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          echo "Signing certificate SHA-256: $CERT"
+          if [ "$CERT" != "$EXPECTED_CERT_SHA256" ]; then
+            echo "The APK is signed with a different key than the StuFit key. Not publishing." >&2
+            rm -f "$OUT/$APK"
+            exit 1
+          fi
+          (cd "$OUT" && sha256sum "$APK" > "$APK.sha256" && cat "$APK.sha256")
+          {
+            echo "### StuFit APK $VERSION"
+            echo "- File: $APK ($(numfmt --to=iec "$(stat -c %s "$OUT/$APK")"))"
+            echo "- Package id: $STUFIT_APPLICATION_ID"
+            echo "- Version code: ${{ steps.ver.outputs.code }}"
+            echo "- Signing certificate SHA-256: $CERT"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -eu
+          NOTES="StuFit $VERSION for Android, built from openGym $VERSION with the StuFit branding.
+
+          Install the APK, or let the app update itself. If you got the file from anywhere else, check it against the .sha256 file.
+
+          Package id: $STUFIT_APPLICATION_ID
+          Signing certificate SHA-256: $EXPECTED_CERT_SHA256"
+          gh release create "$GITHUB_REF_NAME" "out/openGym-$VERSION.apk" "out/openGym-$VERSION.apk.sha256" \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --title "StuFit $VERSION" --notes "$NOTES"
+
+      - name: Keep the APK of a test run
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: stufit-apk
+          path: out/
+          retention-days: 3
+          compression-level: 0
