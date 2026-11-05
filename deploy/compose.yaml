@@ -21,7 +21,7 @@ services:
       - ./coach-auth:/coach-auth
 
   web:
-    image: ghcr.io/n0t4u2c/stufit-web:7cdbedbbd
+    image: ghcr.io/n0t4u2c/stufit-web:7cdbedb
     restart: unless-stopped
     depends_on:
       - api
