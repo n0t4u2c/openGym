@@ -284,7 +284,7 @@ export function PairSheet({ close }) {
       <Button variant="primary" onClick={() => setPair(null)}>{t('Make a new code')}</Button>
     </> : <>
       <div className="muted small" style={{ marginBottom: 14 }}>
-        {t('On the openGym app, choose “Connect to my server”, then enter this address and the code below. It expires in 5 minutes.')}
+        {t('On the StuFit app, choose “Connect to my server”, then enter this address and the code below. It expires in 5 minutes.')}
       </div>
       {/* Read out or typed character by character: left to right in every language. */}
       <div className="card" dir="ltr" style={{ textAlign: 'center', fontSize: 30, fontWeight: 700, letterSpacing: '.16em', padding: '18px 0' }}>{pair.code}</div>
