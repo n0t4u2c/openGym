@@ -16,7 +16,7 @@ const COPY = {
   notifications: () => ({
     icon: 'bell',
     title: t('Never miss the end of a rest'),
-    body: t('openGym can tap you on the shoulder when a rest is over, even with the phone locked in your pocket.'),
+    body: t('StuFit can tap you on the shoulder when a rest is over, even with the phone locked in your pocket.'),
     lines: [t('Rest timer, right on the lock screen'), t('Training reminders, only if you switch them on')],
   }),
   appleHealth: () => ({
