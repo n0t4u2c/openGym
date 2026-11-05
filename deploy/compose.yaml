@@ -1,0 +1,43 @@
+# StuFit on the Synology. No secrets in this file: the tunnel token is read from the .env
+# that lives only on the NAS (TUNNEL_TOKEN=...). deploy/update.sh fetches this file and restarts.
+name: stufit
+
+services:
+  api:
+    image: ghcr.io/duartesantos8/opengym-api:1.4.4
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+      - DATA_DIR=/data
+      - TRUST_PROXY=1
+      - RP_ID=stufit.stuart.farm
+      - ORIGIN=https://stufit.stuart.farm
+      - RP_NAME=StuFit
+      - FIRST_USER_ADMIN=1
+      - INVITE_ONLY=1
+      - ALLOW_GUEST=0
+    volumes:
+      - ./data:/data
+      - ./coach-auth:/coach-auth
+
+  web:
+    image: ghcr.io/n0t4u2c/stufit-web:7cdbedbbd
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      - NGINX_PORT=8080
+      - BACKEND=api
+      - PORT=3000
+      - RESOLVER=127.0.0.11
+      - CF_CONNECTING_IP=$$http_cf_connecting_ip
+      - MEDIA_UPLOAD_MAX=48m
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    depends_on:
+      - web
