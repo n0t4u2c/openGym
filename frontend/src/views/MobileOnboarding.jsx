@@ -34,6 +34,7 @@ export function useServerProvider(url, { wait = 600, probe } = {}) {
   }, [url])
   return provider
 }
+import StuFitLogo from '../components/StuFitLogo.jsx'
 
 // A plain http:// server works (#428), but whatever the app sends, the pairing code and then its
 // token, crosses the network readable. Said once under the field, not in the way: on a home
@@ -179,10 +180,9 @@ export default function MobileOnboarding() {
   const { chooseLocalMode } = useStore()
   // openGym Offline (lib/build-caps.js): there is no server to connect to, so one way in.
   const offline = useOfflineBuild()
-  const head = <>
-    {/* The official lockup (assets/logo), not an icon from the app's set. */}
-    <h1 style={{ margin: '0 0 10px', display: 'flex', justifyContent: 'center' }}><BrandLogo size={36} /></h1>
-  </>
+  const head = <div style={{ display: 'flex', justifyContent: 'center', margin: '28px 0 14px' }}>
+    <StuFitLogo variant="stacked" height={170} />
+  </div>
   const wrap = { display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '78vh', textAlign: 'center' }
   return (
     <div className="narrow" style={wrap}>
