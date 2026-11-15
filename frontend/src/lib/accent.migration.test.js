@@ -41,9 +41,10 @@ describe('the two defaults', () => {
 
 describe('a fresh install (no data at all)', () => {
   it('freshState and a start over wear the brand green', () => {
-    expect(freshState().accent).toBe('brand')
-    expect(accentValue(freshState())).toBe('brand')
-    expect(restartedState({ lang: 'de', accent: 'sky' }).accent).toBe('brand')
+    // StuFit: a new profile wears orange (freshState), not the brand green.
+    expect(freshState().accent).toBe('custom')
+    expect(accentValue(freshState())).toBe('#ea580c')
+    expect(restartedState({ lang: 'de', accent: 'sky' }).accent).toBe('custom')
   })
 })
 
@@ -53,7 +54,7 @@ describe('a copy saved on this device before 1.4.5', () => {
   const boot = async () => (await import('../store/useStore.js')).useStore.getState().S
 
   it('nothing saved: the brand green', async () => {
-    expect((await boot()).accent).toBe('brand')
+    expect((await boot()).accent).toBe('custom')
   })
   it('saved without an accent (from before accents existed): the old green', async () => {
     localStorage.setItem(KEY, JSON.stringify({ unit: 'kg', workouts: [{ id: 'w1' }], routines: [] }))
@@ -129,7 +130,7 @@ describe('a backup imported on this device', () => {
     useStore.getState().importBackup({ unit: 'kg', workouts: [{ id: 'w1', d: '2026-09-01', entries: [] }], routines: [] })
     expect(useStore.getState().S.accent).toBe('lime')
     useStore.getState().importBackup({ ...freshState(), workouts: [{ id: 'w2', d: '2026-09-02', entries: [] }] })
-    expect(useStore.getState().S.accent).toBe('brand')
+    expect(useStore.getState().S.accent).toBe('custom')
   })
 })
 
@@ -139,7 +140,7 @@ describe('another account on this device', () => {
     localStorage.setItem('gym_owner', 'user-1')
     useStore.setState({ S: { ...clone(DEF), accent: 'pink', workouts: [{ id: 'w1', d: '2026-09-01', entries: [] }] }, user: { id: 'user-1' } })
     useStore.getState().setUser({ id: 'user-2', name: 'Two' })
-    expect(useStore.getState().S.accent).toBe('brand')
+    expect(useStore.getState().S.accent).toBe('custom')
     expect(restoredStateFor(useStore.getState().S, { workouts: [{ id: 'w9' }] }).accent).toBe('lime')
   })
 })
