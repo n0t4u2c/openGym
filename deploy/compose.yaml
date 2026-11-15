@@ -4,7 +4,7 @@ name: stufit
 
 services:
   api:
-    image: ghcr.io/duartesantos8/opengym-api:1.4.4
+    image: ghcr.io/duartesantos8/opengym-api:1.4.5
     restart: unless-stopped
     environment:
       - PORT=3000
@@ -21,7 +21,7 @@ services:
       - ./coach-auth:/coach-auth
 
   web:
-    image: ghcr.io/n0t4u2c/stufit-web:7cdbedb
+    image: ghcr.io/n0t4u2c/stufit-web:39010ec
     restart: unless-stopped
     depends_on:
       - api
