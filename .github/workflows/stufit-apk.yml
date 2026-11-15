@@ -116,6 +116,12 @@ jobs:
           grep -q "^[[:space:]]*applicationId \"$STUFIT_APPLICATION_ID\"" "$W"
           sed -i 's|>openGym Beta<|>StuFit<|' frontend/android/wear/src/main/res/values/strings.xml
           grep -q '>StuFit<' frontend/android/wear/src/main/res/values/strings.xml
+          # The build line at the foot of the watch's start screen, and the empty-watch hint (English).
+          S=frontend/android/wear/src/main/java/ch/duartesantos/opengym/wear/ui/Screens.kt
+          sed -i 's|Text("openGym \${BuildConfig|Text("StuFit ${BuildConfig|' "$S"
+          grep -q 'Text("StuFit ${BuildConfig' "$S"
+          sed -i 's|Open openGym on your phone once|Open StuFit on your phone once|' frontend/android/wear/src/main/res/values/strings.xml
+          grep -q 'Open StuFit on your phone once' frontend/android/wear/src/main/res/values/strings.xml
 
       - name: Install dependencies
         working-directory: frontend
