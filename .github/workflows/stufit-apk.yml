@@ -109,6 +109,13 @@ jobs:
           grep -n -E '^[[:space:]]*(applicationId|versionCode|versionName) ' "$F"
           grep -q "^[[:space:]]*applicationId \"$STUFIT_APPLICATION_ID\"" "$F"
           grep -q "^[[:space:]]*versionCode $VERSION_CODE\$" "$F"
+          # The watch app must share the phone app's package id and key, or the two never link.
+          # Its version code follows the phone's (+10000, wear/build.gradle), so nothing else to set.
+          W=frontend/android/wear/build.gradle
+          sed -i "s/^\([[:space:]]*applicationId \)\"ch[.]duartesantos[.]opengym\"/\1\"$STUFIT_APPLICATION_ID\"/" "$W"
+          grep -q "^[[:space:]]*applicationId \"$STUFIT_APPLICATION_ID\"" "$W"
+          sed -i 's|>openGym Beta<|>StuFit<|' frontend/android/wear/src/main/res/values/strings.xml
+          grep -q '>StuFit<' frontend/android/wear/src/main/res/values/strings.xml
 
       - name: Install dependencies
         working-directory: frontend
@@ -124,6 +131,10 @@ jobs:
       - name: Build the release APK
         working-directory: frontend/android
         run: ./gradlew --no-daemon assembleSideloadRelease
+
+      - name: Build the watch APK
+        working-directory: frontend/android
+        run: ./gradlew --no-daemon :wear:assembleRelease
 
       - name: Align and sign
         id: sign
@@ -148,18 +159,31 @@ jobs:
           "$BT/apksigner" sign --ks "$KS" --ks-key-alias "$ANDROID_KEY_ALIAS" \
             --ks-pass env:ANDROID_KEYSTORE_PASSWORD --key-pass env:ANDROID_KEY_PASSWORD \
             --out "$OUT/$APK" "$RUNNER_TEMP/aligned.apk"
-          rm -f "$KS" "$RUNNER_TEMP/aligned.apk" "$OUT/$APK.idsig"
-          CERTS=$("$BT/apksigner" verify --print-certs "$OUT/$APK")
-          echo "$CERTS"
-          if ! echo "$CERTS" | grep -qi "SHA-256 digest: $EXPECTED_CERT_SHA256"; then
-            echo "The APK is signed with a different key than the StuFit key. Not publishing." >&2
-            rm -f "$OUT/$APK"
-            exit 1
-          fi
-          (cd "$OUT" && sha256sum "$APK" > "$APK.sha256" && cat "$APK.sha256")
+          # The watch app, signed with the same key (the Data Layer links only same-key apps).
+          WEAR="StuFit_Wear.apk"
+          "$BT/zipalign" -f -p 4 frontend/android/wear/build/outputs/apk/release/wear-release-unsigned.apk "$RUNNER_TEMP/wear-aligned.apk"
+          "$BT/apksigner" sign --ks "$KS" --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass env:ANDROID_KEYSTORE_PASSWORD --key-pass env:ANDROID_KEY_PASSWORD \
+            --out "$OUT/$WEAR" "$RUNNER_TEMP/wear-aligned.apk"
+          rm -f "$KS" "$RUNNER_TEMP/aligned.apk" "$RUNNER_TEMP/wear-aligned.apk" "$OUT/$APK.idsig" "$OUT/$WEAR.idsig"
+          for F in "$APK" "$WEAR"; do
+            CERTS=$("$BT/apksigner" verify --print-certs "$OUT/$F")
+            echo "$CERTS"
+            if ! echo "$CERTS" | grep -qi "SHA-256 digest: $EXPECTED_CERT_SHA256"; then
+              echo "$F is signed with a different key than the StuFit key. Not publishing." >&2
+              rm -f "$OUT/$APK" "$OUT/$WEAR"
+              exit 1
+            fi
+            # Both must carry the StuFit package id, or the watch never finds the phone app.
+            "$BT/aapt2" dump badging "$OUT/$F" | grep -q "^package: name='$STUFIT_APPLICATION_ID'"
+          done
+          # Separate checksum files: the updater looks for exactly <phone apk>.sha256, and the watch file must
+          # never be mistaken for the phone app (its name sorts after StuFit.apk on purpose).
+          (cd "$OUT" && sha256sum "$APK" > "$APK.sha256" && sha256sum "$WEAR" > "$WEAR.sha256" && cat "$APK.sha256" "$WEAR.sha256")
           {
             echo "### StuFit APK $VERSION"
             echo "- File: $APK ($(numfmt --to=iec "$(stat -c %s "$OUT/$APK")"))"
+            echo "- File: $WEAR ($(numfmt --to=iec "$(stat -c %s "$OUT/$WEAR")"))"
             echo "- Package id: $STUFIT_APPLICATION_ID"
             echo "- Version code: ${{ steps.ver.outputs.code }}"
             echo "- Signing certificate SHA-256: $EXPECTED_CERT_SHA256 (checked)"
@@ -174,13 +198,13 @@ jobs:
           set -eu
           NOTES="StuFit $VERSION for Android, built from openGym $VERSION with the StuFit branding.
 
-          Download StuFit.apk below and open it, or let the app update itself. If you got the file from anywhere else, check it against StuFit.apk.sha256.
+          Download StuFit.apk below and open it, or let the app update itself. StuFit_Wear.apk is the Wear OS watch app, installed on the watch with adb. If you got the file from anywhere else, check it against StuFit.apk.sha256.
 
           Package id: $STUFIT_APPLICATION_ID
           Signing certificate SHA-256: $EXPECTED_CERT_SHA256"
           # Running the same tag again (a respin of this version) replaces its release.
           gh release delete "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --yes 2>/dev/null || true
-          gh release create "$GITHUB_REF_NAME" out/StuFit.apk out/StuFit.apk.sha256 \
+          gh release create "$GITHUB_REF_NAME" out/StuFit.apk out/StuFit.apk.sha256 out/StuFit_Wear.apk out/StuFit_Wear.apk.sha256 \
             --repo "$GITHUB_REPOSITORY" --verify-tag --title "StuFit $VERSION" --notes "$NOTES"
 
       - name: Keep the APK of a test run
