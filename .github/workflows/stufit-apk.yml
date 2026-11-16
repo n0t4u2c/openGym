@@ -116,6 +116,12 @@ jobs:
           grep -q "^[[:space:]]*applicationId \"$STUFIT_APPLICATION_ID\"" "$W"
           sed -i 's|>openGym Beta<|>StuFit<|' frontend/android/wear/src/main/res/values/strings.xml
           grep -q '>StuFit<' frontend/android/wear/src/main/res/values/strings.xml
+          # The watch's launcher icon: the barbell mark in cream on the StuFit orange (these two colors
+          # are used by the launcher icon only).
+          C=frontend/android/wear/src/main/res/values/colors.xml
+          sed -i -e 's|name="brand">#FFA3E635|name="brand">#FFF5F1EA|' -e 's|name="launcher_bg">#FF0C0E12|name="launcher_bg">#FFEA580C|' "$C"
+          grep -q 'name="brand">#FFF5F1EA' "$C"
+          grep -q 'name="launcher_bg">#FFEA580C' "$C"
           # The build line at the foot of the watch's start screen, and the empty-watch hint (English).
           S=frontend/android/wear/src/main/java/ch/duartesantos/opengym/wear/ui/Screens.kt
           sed -i 's|Text("openGym \${BuildConfig|Text("StuFit ${BuildConfig|' "$S"

@@ -1321,7 +1321,8 @@ export default function Settings({ page = null, find = null, via = null, entryKe
           shows only its rating link: Play's payments policy wants Play billing for anything paid
           inside an app, donations to a project that isn't a registered charity included, so the
           coffee links stay on the APK, the iPhone and the web (docs/APP_STORES.md). */}
-      <Section title={t('Support openGym')} footer={play ? undefined : t('openGym is free: no ads, no subscriptions, no tracking. A coffee keeps it that way.')}>
+      {/* StuFit: no donation links or reviews pages for a family server (they point at the upstream project). */}
+      {false && <Section title={t('Support openGym')} footer={play ? undefined : t('openGym is free: no ads, no subscriptions, no tracking. A coffee keeps it that way.')}>
         {MOBILE && ios && <Row icon="star" iconTint="var(--orange)" title={t('Rate openGym on the App Store')} accessory="chevron"
           onClick={() => window.open('https://apps.apple.com/app/id6822275400?action=write-review', '_blank', 'noopener')} />}
         {play && <Row icon="star" iconTint="var(--orange)" title={t('Rate openGym on Google Play')} accessory="chevron"
@@ -1334,7 +1335,7 @@ export default function Settings({ page = null, find = null, via = null, entryKe
           <Row icon="heart" iconTint="var(--purple)" title="GitHub Sponsors" accessory="chevron"
             onClick={() => window.open('https://github.com/sponsors/DuarteSantos8', '_blank', 'noopener')} />
         </>}
-      </Section>
+      </Section>}
       {/* "Add to Home screen": not inside the phone app, and not once it is installed. Safari's
           Share menu only on Apple (an iPad says Macintosh too); Windows and Linux get Chrome's
           install icon instead of an iPhone tip. */}
